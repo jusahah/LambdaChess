@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+	<title>Analyze chess games using AWS Lambda</title>
+	<link rel="stylesheet" href="bootstrap.min.css"></link>
+	<style>
+		.statepanel {
+			display: none;
+		}
+		ul li {
+			list-style: none;
+			height: 14px;
+			font-size: 10px;
+			margin: 2px;
+		}
+		textarea {
+			font-size: 12px;
+		}
+		span.hmove {
+			background-color: #FF5A5A;
+		}
+		span.pgnmove {
+			color: #111;
+
+		}
+	</style>
+</head>
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">LambdaChess</a>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Analyze</a></li>
+            <li><a href="#about">About LambdaChess</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+    <div class="container" id="maincontainer" style="margin-top: 80px;">
+		<!-- panel -->
+		<div id="waitingForNewAnalysis" class="statepanel">
+			<h3>Copypaste pgn below</h3>
+			<p><i>Note: one game at a time - if your pgn text contains more than one game, it will be rejected</i></p>
+			<textarea id="pgnPaste" class="form-control" rows="22"></textarea>
+			<hr>
+			<button id="pgnSubmit" class="btn btn-primary">Submit PGN</button>
+		</div>	
+		<!-- panel -->
+		<div id="analysisRequestConfirmed" class="statepanel">
+			<h3>Analysis is running!</h3>
+			<p>Wait for analysis results to flow back...</p>
+			<hr>
+			<span style="width: 100%;"class="sparklines" id="analysisBarChart"></span>
+			<hr>
+			<h3><span class="label label-default" id="evallabel">---</span></h3>
+			<ul id="tempresults" style="display: none;">
+
+			</ul>
+
+			
+
+		</div>
+		<!-- panel -->
+		<div id="analysisEnded" class="statepanel">
+			<h3>Move-by-move evaluation</h3>
+			<span style="width: 100%;" class="sparklines" id="analysisBarChartFinal"></span>
+			<h3><span class="label label-default" id="evallabelFinal">---</span></h3>
+			<hr>
+			<br>
+			<h3>Analysed PGN file for copypaste</h3>
+			<p>After each move there is PGN-compliant comment with form "<i>{evaluation,bestmove}</i>". Evaluation is in centipawns and from white's point of view</p>
+			<div class="well">
+				<p id="finalPgn"></p>
+			</div>
+			
+
+		</div>
+		<!-- panel -->
+		<div id="analysisRequestSentAway" class="statepanel">
+			<h3>Server is parsing your pgn game... wait a second...</h3>
+		</div>
+	</div>
+
+	<script   src="https://code.jquery.com/jquery-2.2.3.min.js"   integrity="sha256-a23g1Nt4dtEYOj7bR+vTu7+T8VP13humZFBJNIYoEJo="   crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="sparkline.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.6/socket.io.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.11.2/lodash.min.js"></script>
+	<script>
+
+	var MIN_WIDTH = 600;
+
+	var currentState;
+
+	var evalsArray;
+	var barWidth = 8;
+
+
+	
+	var appStateFunctions = {
+		// To be run when app progresses to given state
+		starters: {
+			waitingForNewAnalysis: function(data) {
+
+
+			},
+			analysisRequestConfirmed: function(data) {
+				console.log("ANALYSIS CONFIRMED");
+				var numOfPositions = data.numofpositions || 0;
+				var UL = $('#analysisRequestConfirmed').find('ul#tempresults');
+				var html = _.times(numOfPositions, function(index) {
+					return '<li data-movenum="' + (index+1) + '">Half-move ' + (index+1) + ': (waiting...)</li>';
+				});
+
+				evalsArray = _.times(numOfPositions, function() {
+					return 0;
+				});
+				var docWidth = $('#maincontainer').width();
+				barWidth = Math.floor((docWidth-40) / numOfPositions);
+	
+				$('#analysisBarChart').sparkline(evalsArray, {zeroAxis: true, type: 'bar', height: 120, barWidth: barWidth, barSpacing: 0});
+
+				UL.empty().append(html);
+			},
+			analysisEnded: function() {
+
+			},
+			analysisRequestSentAway: function() {
+
+
+			}
+		},
+		// To be run when app leaves given state
+		stoppers: {
+			waitingForNewAnalysis: function(data) {
+				//$('#waitingForNewAnalysis').find('#pgnPaste').val('');
+			},
+			analysisRequestConfirmed: function(data) {
+				$('#analysisRequestConfirmed').find('ul#tempresults').empty();
+			},
+			analysisEnded: function() {
+				$('#analysisBarChart').sparkline([]);
+				//evalsArray = null;
+			},
+			analysisRequestSentAway: function() {
+
+
+			},
+
+		}
+	};
+
+	function appState(newState, optionalData) {
+
+		var nextPanel = $('#' + newState);
+		if (!nextPanel) return console.warn("App state to non-existing panel: " + newState);
+		console.log("App state to panel: " + newState);
+		currentState = newState;
+		if (appStateFunctions.stoppers.hasOwnProperty(newState)) {
+			// State that is about to die has closing behaviour, run it
+			appStateFunctions.stoppers[newState](optionalData);
+		}
+		appStateFunctions.starters[newState](optionalData); // Run behaviour for given state
+		$('.statepanel').hide();
+		nextPanel.show();
+	}
+
+	function processPositions(positions, token) {
+		console.log("POSITIONS CAME BACK");
+		console.log(positions);
+		_.each(positions, function(position) {
+			var index = position.movenum;
+			var UL = $('#analysisRequestConfirmed').find('ul#tempresults');
+			var LI = UL.find('*[data-movenum="' + index + '"]');
+			LI.empty().append(position.eval);
+			var v = position.eval;
+			v = v > 599 ? 599 : (v < -599 ? -599 : v);
+			evalsArray[index-1] = v;
+			// Update sparklines
+			$('#evallabel').empty().append((position.eval/100).toFixed(2));
+			$('#analysisBarChart').sparkline(evalsArray, {zeroAxis: true, type: 'bar', height: 120, barWidth: barWidth, barSpacing: 0});
+		});
+	}
+
+	function processPGN(pgn, token) {
+		console.log("Final PGN came back");
+		pgnWithSpans = addSpansForMoves(pgn);
+		$('#analysisEnded').find('#finalPgn').empty().append(pgnWithSpans);
+	}
+
+	function addSpansForMoves(pgn) {
+		var parts = pgn.split(" ");
+		var halfmove = 0;
+		var decoratedWithSpans = _.map(parts, function(part) {
+			if (!isNaN(part.charAt(0)) || part.charAt(0) === '{') return part;
+			halfmove++;
+			return '<span class="pgnmove" data-movenum="' + halfmove + '">' + part + '</span>';
+		});
+
+		return decoratedWithSpans.join(" ");
+	}
+
+	function updateFinalBarChart(evals) {
+		$('#analysisEnded').find('#analysisBarChartFinal').sparkline(evals, {zeroAxis: true, type: 'bar', height: 180, barWidth: barWidth, barSpacing: 0});
+
+		$('#analysisEnded').find('#analysisBarChartFinal').bind('sparklineRegionChange', function(ev) {
+			console.log("move")
+			console.log(ev);
+			var sparkline = ev.sparklines[0];
+	        var region = sparkline.getCurrentRegionFields();
+	        console.log(region);
+	        var evalIndex = region[0].offset;
+
+	        highLightedOnChart(evalIndex);
+		});
+	}
+
+	function highLightedOnChart(index) {
+		console.log(index);
+		console.log(evalsArray);
+		var evaluation = evalsArray[index];
+		console.log(evaluation);
+		$('#analysisEnded').find('#evallabelFinal').empty().append((evaluation/100).toFixed(2));
+
+		highLightMoveInPGNText(index);
+	}
+
+	function highLightMoveInPGNText(index) {
+		var finalPgn = $('#analysisEnded').find('#finalPgn');
+
+		finalPgn.find('.hmove').removeClass('hmove').addClass('pgnmove');
+		finalPgn.find('*[data-movenum="' + (index+1) + '"]').removeClass('pgnmove').addClass('hmove');
+	}
+
+
+	$(function() {
+		// Socket listeners
+		var socket = io('http://localhost:3210');
+		socket.on('analysisrequest', function(analysisResponse) {
+			if (!analysisResponse.outcome) {
+				alert(analysisResponse.reason);
+				return appState('waitingForNewAnalysis');
+			}
+			appState('analysisRequestConfirmed', analysisResponse);
+		});
+		socket.on('positions', function(response) {
+			processPositions(response.positions, response.token);
+		});
+		socket.on('pgn', function(response) {
+			processPGN(response.pgn, response.token);
+			updateFinalBarChart(evalsArray);
+			appState('analysisEnded', response.token);
+		});
+
+
+		///
+		/// Textarea submit listener
+		$('#pgnSubmit').on('click', function() {
+			var pgnText = $('#pgnPaste').val();
+			doAnalysisRequest(pgnText);
+		});
+
+		function doAnalysisRequest(pgnText) {
+			pgnText = pgnText.trim();
+			if (pgnText.length > (1000 * 10)) {
+				return alert("Too long pgn string");
+			}
+			console.log("Sending analysis request");
+			console.log(pgnText);
+			socket.emit('analyzepgn', {pgn: pgnText});
+			appState('analysisRequestSentAway');
+		}
+
+		appState('waitingForNewAnalysis');
+	});
+
+
+
+
+
+	</script>
+</body>
+</html>
