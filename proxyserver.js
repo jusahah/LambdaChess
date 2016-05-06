@@ -45,8 +45,12 @@ function startUp() {
 	  	if (!pgnString || pgnString.length > (10 * 1000)) {
 	  		console.error("Client sent too big file");
 	  		socket.disconnect(); // Force the fucker to fuck the fuck out
+	  		return;
 	  	}
 	  	try {
+	  		// Parsing is CPU-expensive
+	  		// This has potential to clog the event loop
+	  		// Move to separate thread later if needed
 		  	var analysisRequests = prepareAnalysis(pgnString);
 	  	} catch (e) {
 	  		console.error("----");
@@ -86,7 +90,7 @@ function startUp() {
 // Returns how many positions a array of requests has
 // Each array item (=req) can have multiple positions
 function positionCount(analysisRequests) {
-	console.log(analysisRequests)
+	//console.log(analysisRequests)
 	return _.reduce(analysisRequests, function(sum, req) {
 		return sum + req.fens.length;
 	}, 0);
@@ -94,6 +98,8 @@ function positionCount(analysisRequests) {
 
 function prepareAnalysis(pgnString) {
 	var positions = positionalize(pgnString);
+
+	if (positions.length > 200) throw "Too many positions";
 	var chunkSize = 4;
 	if (positions < 40) chunkSize = 2;
 	else if (positions < 80) chunkSize = 3; 
@@ -266,7 +272,7 @@ function doLocalAnalysis(analysingReqs, progressCb, cb) {
 		// If there's a rejection, some of the positions were left unanalysed.
 		console.log("ALL POSITION REQUESTS ARRIVED BACK!");
 		// First flatten then order by movenum
-		console.log(gatheredResults);
+		//console.log(gatheredResults);
 		var positionsWithEvals = _.orderBy(_.flatten(gatheredResults), 'movenum', 'asc');
 		var finalPgn = pgnize(positionsWithEvals);
 		console.log(finalPgn);
