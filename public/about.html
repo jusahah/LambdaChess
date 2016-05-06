@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+	<title>Analyze chess games using AWS Lambda</title>
+	<link rel="stylesheet" href="bootstrap.min.css"></link>
+	<style>
+		.statepanel {
+			display: none;
+		}
+		ul li {
+			list-style: none;
+			height: 14px;
+			font-size: 10px;
+			margin: 2px;
+		}
+		textarea {
+			font-size: 12px;
+		}
+		span.hmove {
+			font-weight: bolder;
+			background-color: #FF5A5A;
+		}
+		span.pgnmove {
+			font-weight: bolder;
+			color: #111;
+
+		}
+	</style>
+</head>
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">LambdaChess</a>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Analyze</a></li>
+            <li><a href="about">About LambdaChess</a></li>
+            <li><a href="contact">Contact</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+    <div class="container" id="maincontainer" style="margin-top: 80px;">
+      <h1>About LambdaChess</h1>
+      <hr>
+      <h3>What is it? What does it do?</h3>
+      <p>LambdaChess is a personal project to utilize Amazon Lambda computation service for scalable
+      chess analysis. It analyses chess games and displays visualizations of move evaluations.</p>
+      <hr>
+      <h3>What Lambda stands for?</h3>
+      <p>Amazon allows Stockfish 7 binary be executed on its <a href="https://aws.amazon.com/lambda/" target="_blank">Lambda cloud service</a>. This way LambdaChess can take in PGN game, split it into positions, and send each position separately to Lambda computation process. Sending is done from Node.js server by HTTP.</p>
+      <p>On the Amazon side Node.js receives the position, and sends it to separate local Stockfish 7 process to be analysed. Stockfish churns for a while, spits out the analysis and job is done.</p>
+      <p>After all positions are analysed,
+      positions are joined back together forming a PGN text file, which is then routed to end user.</p>
+      <p>Note that as each position is analysed on separate Stockfish 7 instance, positions arrive back in semi-random order. You can see the results dripping back to you in real time. When the last position has arrived back you are presented with full PGN file.</p>
+      <hr>
+      <h3>Is it free?</h3>
+      <p>For now, yes. Note that Amazon Lambda computation service is not free. It is pretty cheap though, and analysis of a single game (40 moves, default ply depth of 16) costs fractions of one euro cent. Analysing one thousand games is still well within Amazon Free Tier-package.</p>
+      <p>Note that ply depth of 16 is modest. Probably comparable to ELO 2600 or something. Think it more of a blunder check than real analysis. Later on I may add possibility of buying deeper analysis. Something like 24 ply, which is already way above Carlsen strength.</p>
+      <hr>
+      <h3>Source?</h3>
+      <p>On Github: <a href="" target="_blank">LambdaChess</a></p>
+      <hr>
+      <h3>Contact / ideas?</h3>
+      <p>Contact me at Twitter: <a href="https://twitter.com/jussi_ha">@jussi_ha</a></p>
+
+    </div>
+
+</body>
+</html>    

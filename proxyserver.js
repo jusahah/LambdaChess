@@ -24,6 +24,7 @@ server.listen(process.env.SOCKET_PORT);
 var analyseController = require('./index');
 var positionalize = require('./positionsFromSinglePGN');  // Function
 var pgnize        = require('./evaluatedPositionsToPGN'); // Function
+var getHeadersIfPresent = require('./getHeadersIfPresent');  // Function
 
 // AWS data saved locally for easier access
 // Note to self - always use enviroment file for AWS credentials
@@ -55,6 +56,7 @@ function startUp() {
 	  		console.error("----");
 	  		return socket.emit('analysisrequest', {outcome: false, reason: 'Pgn could not be parsed - check its validity.'});
 	  	}
+	  	var headers = getHeadersIfPresent(pgnString);
 	  	var numberOfPositions = positionCount(analysisRequests);
 	  	var analysisToken = uuid.v4();
 	  	socket.currentlyAnalysing = true;
@@ -65,7 +67,7 @@ function startUp() {
 	  		socket.emit('positions', {'positions': positions, 'token': analysisToken});
 	  	}, function(finalPgn) {
 	  		console.log("Routing final pgn to " + analysisToken);
-	  		socket.emit('pgn', {'pgn': finalPgn, 'token': analysisToken});
+	  		socket.emit('pgn', {'headers': headers, 'pgn': finalPgn, 'token': analysisToken});
 	  		socket.currentlyAnalysing = false;
 	  	});
 	  	socket.emit('analysisrequest', {
@@ -217,7 +219,12 @@ function doAnalysis(analysingReqs, progressCb, cb) {
 
 // LOCAL / TESTING ANALYSIS FUNCTION
 function doLocalAnalysis(analysingReqs, progressCb, cb) {
-	console.log("DO LOCAL ANALYSIS WITH REQS NUM: " + analysingReqs.length);
+	console.log("DO ANALYSIS WITH REQS NUM: " + analysingReqs.length);
+	if (analysingReqs.length > 60) {
+		// Game has more than 120 moves
+		console.error("Too many analysing requests -> bailing: " + analysingReqs.length);
+		throw "TOO_MANY_ANALYSIS_REQS";
+	}
 	var gatheredResults = [];
 
 	var proms = _.map(analysingReqs, function(req) {
@@ -225,17 +232,25 @@ function doLocalAnalysis(analysingReqs, progressCb, cb) {
 		return new Promise(function(resolve, reject) {
 			// We need to assign new object so that in local testing
 			// we dont accidentally change properties of our req object in analysis layer
+			analysisProxy(req, {done: function(err, res) {
+				//console.log(res);
+				//if (Math.random() < 0.3) return reject();
+				gatheredResults.push(res);
+				return resolve(res); // Resolve promise
+			}});
+			/*
 			analyseController.handler(Object.assign({}, req), {done: function(err, res) {
 				//console.log(res);
 				if (Math.random() < 0.3) return reject();
 				gatheredResults.push(res);
 				return resolve(res); // Resolve promise
 			}})
-		}).then(progressCb).catch(function() {
-				console.log("PROMISE FAIL");
-				console.log(req);
-				var fens = req.fens;
-				gatheredResults.push(fens);
+			*/
+		}).then(progressCb).catch(function(err) {
+				console.error("ANALYSIS REQUEST FAIL");
+				console.error(err);
+				// We have no choice but to push the positions with no analysises
+				gatheredResults.push(req.fens);
 		});
 		
 	});
@@ -253,6 +268,39 @@ function doLocalAnalysis(analysingReqs, progressCb, cb) {
 		console.log(finalPgn);
 		cb(finalPgn); // Return to original caller
 	});
+}
+
+function analysisProxy(req, context) {
+	// Later do this switch using separate required modules
+	// For now this is fine
+	if (process.env.PRODUCTIONENV === 'true') {
+		return;
+		// PRODUCTION IMPLEMENTATION
+		request({
+				url: LAMBDA_URL,
+				headers: {
+					'x-api-key': API_KEY
+				},
+				timeout: 60 * 1000,
+				method: 'POST',
+				json: req,
+			}, function(err, res, body) {
+				
+				if (err) {
+					throw err;
+				}
+				if (res.statusCode == 200) {
+					console.log("200 back");
+					console.log(body);
+					var r = body;
+					return context.done(null, r);
+				}
+				throw "Non-200 HTTP response: " + res.statusCode;
+		});
+	} else {
+		// LOCAL TESTING IMPLEMENTATION
+		analyseController.handler(Object.assign({}, req), context);	
+	}
 }
 
 
