@@ -54,7 +54,7 @@ function getPositions(moves) {
 	// Applying moves one by one and collecting positions
 	var positions = _.map(moves, function(move) {
 		newchess.move(move);
-		return {move: move.san, color: move.color, fen: newchess.fen(), eval: '?', movenum: moveNum++};
+		return {move: move.san, color: move.color, fen: newchess.fen(), eval: '?', movenum: moveNum++, bestmove: "?"};
 	});
 
 	return positions;

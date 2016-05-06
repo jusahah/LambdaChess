@@ -1,12 +1,12 @@
 // Require enviroment data, which automatically binds variables to process.env
 require('dotenv').config();
 
-var static = require('node-static'); // For returning test.html, nothing else
+var static = require('node-static'); // For static files (like public/index.html)
 var fs = require('fs');
 var _ = require('lodash');
-var Promise = require('bluebird');
-var request = require('request');
-var uuid = require('node-uuid');
+var Promise = require('bluebird'); // Promise library
+var request = require('request'); // HTTP requests to AWS Lambda
+var uuid = require('node-uuid'); // Generation of globally unique ids
 var server = require('http').createServer();
 var io = require('socket.io')(server);
 
@@ -14,11 +14,10 @@ var fileServer = new static.Server('./public');
 require('http').createServer(function (request, response) {
     request.addListener('end', function () {
     	fileServer.serve(request, response);
-        //fileServer.serveFile('/index.html', 200, {}, request, response);
     }).resume();
 }).listen(process.env.FILESERVER_PORT);
 
-
+// Start file server listener
 server.listen(process.env.SOCKET_PORT);
 
 // Own deps
@@ -26,24 +25,12 @@ var analyseController = require('./index');
 var positionalize = require('./positionsFromSinglePGN');  // Function
 var pgnize        = require('./evaluatedPositionsToPGN'); // Function
 
-// AWS data (must be kept private)
+// AWS data saved locally for easier access
+// Note to self - always use enviroment file for AWS credentials
 var LAMBDA_URL = process.env.LAMBDA_URL;
 var API_KEY    = process.env.API_KEY;
-/*
-// Test file read and processing
-var pgnFile = fs.readFileSync('smallgame2.pgn', 'utf8');
-var positions = positionalize(pgnFile);
-var positionPairs = _.chunk(positions, 2);
-var analysingReqs = _.map(positionPairs, function(pair) {
-	return {
-		"fens": pair,
-	  	"token": uuid.v1(),
-	  	"type": "multiple",
-	  	"depth": 16
-	}
-});
-// Test file stuff ends
-*/
+
+// App launch function
 function startUp() {
 	// Register socket listener for accepting new web surfers
 	io.on('connection', function(socket){
@@ -89,12 +76,13 @@ function startUp() {
 
 	  });
 	  socket.on('disconnect', function(){
-
+	  	// Do nothing, socket.io handles all relevant stuff
 	  });
 	});
 
 }
-
+// Returns how many positions a array of requests has
+// Each array item (=req) can have multiple positions
 function positionCount(analysisRequests) {
 	console.log(analysisRequests)
 	return _.reduce(analysisRequests, function(sum, req) {
@@ -106,13 +94,14 @@ function prepareAnalysis(pgnString) {
 	var positions = positionalize(pgnString);
 	var positionPairs = _.chunk(positions, 2);
 
-
 	return _.map(positionPairs, function(pair) {
 		return {
 			"fens": pair,
 		  	"token": uuid.v4(),
 		  	"type": "multiple",
-		  	"depth": 16
+		  	"depth": 16,
+		  	"eval": "?", // Placeholder
+		  	"bestmove": "?" // Placeholder
 		}
 	});
 
@@ -161,6 +150,7 @@ Promise.all(proms).then(function() {
 */
 //analyseController.handler(testPost, printFen);
 
+// PRODUCTION ANALYSIS FUNCTION
 function doAnalysis(analysingReqs, progressCb, cb) {
 	console.log("DO ANALYSIS WITH REQS NUM: " + analysingReqs.length);
 	return;
@@ -225,6 +215,7 @@ function doAnalysis(analysingReqs, progressCb, cb) {
 
 }
 
+// LOCAL / TESTING ANALYSIS FUNCTION
 function doLocalAnalysis(analysingReqs, progressCb, cb) {
 	console.log("DO LOCAL ANALYSIS WITH REQS NUM: " + analysingReqs.length);
 	var gatheredResults = [];
@@ -232,21 +223,31 @@ function doLocalAnalysis(analysingReqs, progressCb, cb) {
 	var proms = _.map(analysingReqs, function(req) {
 		console.log("Sending req to analysis");
 		return new Promise(function(resolve, reject) {
-			analyseController.handler(req, {done: function(err, res) {
+			// We need to assign new object so that in local testing
+			// we dont accidentally change properties of our req object in analysis layer
+			analyseController.handler(Object.assign({}, req), {done: function(err, res) {
+				//console.log(res);
+				if (Math.random() < 0.3) return reject();
 				gatheredResults.push(res);
 				return resolve(res); // Resolve promise
-			}});
+			}})
+		}).then(progressCb).catch(function() {
+				console.log("PROMISE FAIL");
+				console.log(req);
+				var fens = req.fens;
+				gatheredResults.push(fens);
 		});
 		
 	});
 
-	_.each(proms, function(prom) {
-		prom.then(progressCb);
-	});
-
-	Promise.all(proms).then(function() {
-		console.log("ALL POSITIONS DONE!!!")
+	Promise.all(proms.map(function(prom) {
+		return prom.reflect(); // Return promise thats fulfilled even on rejection of prom!
+	})).then(function() {
+		// All request promises have now EITHER been fulfilled or rejected!
+		// If there's a rejection, some of the positions were left unanalysed.
+		console.log("ALL POSITION REQUESTS ARRIVED BACK!");
 		// First flatten then order by movenum
+		console.log(gatheredResults);
 		var positionsWithEvals = _.orderBy(_.flatten(gatheredResults), 'movenum', 'asc');
 		var finalPgn = pgnize(positionsWithEvals);
 		console.log(finalPgn);
@@ -256,16 +257,13 @@ function doLocalAnalysis(analysingReqs, progressCb, cb) {
 
 
 
-// Kick off socket listening
+// Kick off socket listening thus allowing end-users to send in pgn games for analysis
 startUp();
 
 /*
-client.post({url : '', timeout: 100}, testPost, function(err, res, body) {
-	if (err) {
-		console.log(err);
-	}
-	if (res.statusCode == 200) {
-		console.log(body);
-	}
-});
-*/
+.catch(function() {
+			// Analysis of the position batch failed
+			// We still need to add them to gatheredResults so pgn can be produced
+
+		})
+		*/

@@ -109,6 +109,7 @@
 	var currentState;
 
 	var evalsArray;
+	var cappedEvalsArray;
 	var barWidth = 8;
 
 
@@ -131,6 +132,7 @@
 				evalsArray = _.times(numOfPositions, function() {
 					return 0;
 				});
+				cappedEvalsArray = _.slice(evalsArray); // Copy 
 				var docWidth = $('#maincontainer').width();
 				barWidth = Math.floor((docWidth-40) / numOfPositions);
 	
@@ -190,11 +192,14 @@
 			var LI = UL.find('*[data-movenum="' + index + '"]');
 			LI.empty().append(position.eval);
 			var v = position.eval;
-			v = v > 599 ? 599 : (v < -599 ? -599 : v);
+			var cappedV = v > 599 ? 599 : (v < -599 ? -599 : v);
 			evalsArray[index-1] = v;
+			cappedEvalsArray[index-1] = cappedV;
+			
+			
 			// Update sparklines
 			$('#evallabel').empty().append((position.eval/100).toFixed(2));
-			$('#analysisBarChart').sparkline(evalsArray, {zeroAxis: true, type: 'bar', height: 120, barWidth: barWidth, barSpacing: 0});
+			$('#analysisBarChart').sparkline(cappedEvalsArray, {zeroAxis: true, type: 'bar', height: 120, barWidth: barWidth, barSpacing: 0});
 		});
 	}
 
@@ -236,7 +241,8 @@
 		console.log(evalsArray);
 		var evaluation = evalsArray[index];
 		console.log(evaluation);
-		$('#analysisEnded').find('#evallabelFinal').empty().append((evaluation/100).toFixed(2));
+		var evalText = (evaluation/100).toFixed(2);
+		$('#analysisEnded').find('#evallabelFinal').empty().append(evalText);
 
 		highLightMoveInPGNText(index);
 	}
@@ -264,7 +270,7 @@
 		});
 		socket.on('pgn', function(response) {
 			processPGN(response.pgn, response.token);
-			updateFinalBarChart(evalsArray);
+			updateFinalBarChart(cappedEvalsArray);
 			appState('analysisEnded', response.token);
 		});
 

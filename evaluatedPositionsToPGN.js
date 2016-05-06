@@ -17,7 +17,10 @@ function weaveEvalsIn(pgnText, positions) {
 		currPositionIndex++;
 
 		var evaluation = positions[currPositionIndex].eval;
-		evaluation = (evaluation/100).toFixed(2);
+		if (!isNaN(evaluation)) {
+			evaluation = (evaluation/100).toFixed(2);
+		}
+		
 
 		// This defines comment syntax!!!
 		return part + " {" + evaluation + "," + positions[currPositionIndex].bestmove + "}";
