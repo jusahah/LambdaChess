@@ -13,12 +13,7 @@
 		.statepanel {
 			display: none;
 		}
-		ul li {
-			list-style: none;
-			height: 14px;
-			font-size: 10px;
-			margin: 2px;
-		}
+
 		textarea {
 			font-size: 12px;
 		}
@@ -34,6 +29,7 @@
 	</style>
 </head>
 <body>
+
     <nav class="navbar navbar-inverse navbar-fixed-top">
       <div class="container">
         <div class="navbar-header">
@@ -43,14 +39,17 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">LambdaChess</a>
+          <a class="navbar-brand" href="index.html">LambdaChess</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
             <li class="active"><a href="index.html">Analyze</a></li>
             <li><a href="about.html">About LambdaChess</a></li>
-            <li><a href="contact.html">Contact</a></li>
+            
           </ul>
+          <ul class="nav navbar-nav navbar-right">
+			<li><a href="https://github.com/jusahah/LambdaChess" target="_blank">In Github</a></li>   
+          </ul>          
         </div><!--/.nav-collapse -->
       </div>
     </nav>
@@ -79,8 +78,8 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 			<button id="pasteTestPgn" class="btn btn-default">Paste Test Game</button>
 		</div>	
 		<!-- panel -->
-		<div id="analysisRequestConfirmed" class="statepanel">
-			<h3>Analysis is running!</h3>
+		<div id="analysisRequestConfirmed" class="statepanel" style="position: relative;">
+			<h3>Analysis is running!</h3><div id="analysisSpinner" style="position: absolute; top: 24px; right: 24px;"></div>
 			<p>Wait for analysis results to flow back...</p>
 			<hr>
 			<span style="width: 100%;"class="sparklines" id="analysisBarChart"></span>
@@ -125,6 +124,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.6/socket.io.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.11.2/lodash.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.5.10/clipboard.min.js"></script>
+	<script src="spinner.js"></script>
 	<script>
 
 	var MIN_WIDTH = 600;
@@ -134,6 +134,8 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 	var evalsArray;
 	var cappedEvalsArray;
 	var barWidth = 8;
+
+	var analysisSpinner;
 
 
 	
@@ -145,7 +147,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 
 			},
 			analysisRequestConfirmed: function(data) {
-				console.log("ANALYSIS CONFIRMED");
+				//console.log("ANALYSIS CONFIRMED");
 				var numOfPositions = data.numofpositions || 0;
 				var UL = $('#analysisRequestConfirmed').find('ul#tempresults');
 				var html = _.times(numOfPositions, function(index) {
@@ -162,8 +164,17 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 				$('#analysisBarChart').sparkline(evalsArray, {zeroAxis: true, type: 'bar', height: 180, barWidth: barWidth, barSpacing: 0});
 
 				UL.empty().append(html);
+
+				// Put spinner to action
+				analysisSpinner = new Spinner().spin()
+				$('#analysisSpinner').get(0).appendChild(analysisSpinner.el);
 			},
 			analysisEnded: function() {
+
+				if (analysisSpinner) {
+					analysisSpinner.stop();
+					analysisSpinner = null;
+				}
 
 			},
 			analysisRequestSentAway: function() {
@@ -195,7 +206,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 
 		var nextPanel = $('#' + newState);
 		if (!nextPanel) return console.warn("App state to non-existing panel: " + newState);
-		console.log("App state to panel: " + newState);
+		//console.log("App state to panel: " + newState);
 		currentState = newState;
 		if (appStateFunctions.stoppers.hasOwnProperty(newState)) {
 			// State that is about to die has closing behaviour, run it
@@ -208,7 +219,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 
 	function processPositions(positions, token) {
 		console.log("POSITIONS CAME BACK");
-		console.log(positions);
+		//console.log(positions);
 		_.each(positions, function(position) {
 			var index = position.movenum;
 			var UL = $('#analysisRequestConfirmed').find('ul#tempresults');
@@ -237,11 +248,12 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 
 	function processPGN(headers, pgn, token) {
 		console.log("Final PGN came back");
-		console.log("Headers: " + headers);
+		//console.log("Headers: " + headers);
 		pgnWithSpans = addSpansForMoves(pgn);
 		if (!headers) headers = '';
+		else headers += '\n\n';
 		// Hidden textarea for copying quickly to clipboard
-		$('#analysisEnded').find('#copyFinalPgn').empty().append(headers + '\n\n' + pgn);
+		$('#analysisEnded').find('#copyFinalPgn').empty().append(headers + pgn);
 		$('#analysisEnded').find('#finalPgn').empty().append("<br>" + pgnWithSpans);
 	}
 
@@ -263,7 +275,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 		$('#analysisEnded').find('#analysisBarChartFinal').bind('sparklineRegionChange', function(ev) {
 			var sparkline = ev.sparklines[0];
 	        var region = sparkline.getCurrentRegionFields();
-	        console.log(region);
+	        //console.log(region);
 	        var evalIndex = region[0].offset;
 
 	        highLightedOnChart(evalIndex);
@@ -317,7 +329,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 		});
 		$('#pasteTestPgn').on('click', function() {
 			var pgnText = $('#testPgn').text();
-			console.log(pgnText);
+			//console.log(pgnText);
 			$('#pgnPaste').val(pgnText);
 		});
 		function doAnalysisRequest(pgnText) {
@@ -326,7 +338,7 @@ Bf5 34. Qc1 Ne4 35. Rd1 Qd6 36. f3 gxf3 37. gxf3 Qg6+ 0-1</p>
 				return alert("Too long pgn string");
 			}
 			console.log("Sending analysis request");
-			console.log(pgnText);
+			//console.log(pgnText);
 			socket.emit('analyzepgn', {pgn: pgnText});
 			appState('analysisRequestSentAway');
 		}

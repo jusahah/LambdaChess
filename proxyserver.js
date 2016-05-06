@@ -94,7 +94,12 @@ function positionCount(analysisRequests) {
 
 function prepareAnalysis(pgnString) {
 	var positions = positionalize(pgnString);
-	var positionPairs = _.chunk(positions, 2);
+	var chunkSize = 4;
+	if (positions < 40) chunkSize = 2;
+	else if (positions < 80) chunkSize = 3; 
+	var positionPairs = _.chunk(positions, chunkSize);
+
+	console.log("POSITION PAIRS: " + positionPairs.length);
 
 	return _.map(positionPairs, function(pair) {
 		return {
@@ -206,7 +211,6 @@ function doAnalysis(analysingReqs, progressCb, cb) {
 	Promise.all(proms).then(function() {
 		console.log("ALL POSITIONS RECEIVED BACK!!!")
 		// First flatten then order by movenum
-		console.log(gatheredResults);
 		var positionsWithEvals = _.orderBy(_.flatten(gatheredResults), 'movenum', 'asc');
 		var finalPgn = pgnize(positionsWithEvals);
 		cb(finalPgn); // Return to original caller
@@ -274,7 +278,7 @@ function analysisProxy(req, context) {
 	// Later do this switch using separate required modules
 	// For now this is fine
 	if (process.env.PRODUCTIONENV === 'true') {
-		return;
+		
 		// PRODUCTION IMPLEMENTATION
 		request({
 				url: LAMBDA_URL,
@@ -291,7 +295,7 @@ function analysisProxy(req, context) {
 				}
 				if (res.statusCode == 200) {
 					console.log("200 back");
-					console.log(body);
+					//console.log(body);
 					var r = body;
 					return context.done(null, r);
 				}

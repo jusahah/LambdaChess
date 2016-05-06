@@ -7,31 +7,9 @@
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
     <meta name="description" content="">
     <meta name="author" content="">
-	<title>Analyze chess games using AWS Lambda</title>
+	<title>Analyze chess games using AWS Lambda | About</title>
 	<link rel="stylesheet" href="bootstrap.min.css"></link>
-	<style>
-		.statepanel {
-			display: none;
-		}
-		ul li {
-			list-style: none;
-			height: 14px;
-			font-size: 10px;
-			margin: 2px;
-		}
-		textarea {
-			font-size: 12px;
-		}
-		span.hmove {
-			font-weight: bolder;
-			background-color: #FF5A5A;
-		}
-		span.pgnmove {
-			font-weight: bolder;
-			color: #111;
 
-		}
-	</style>
 </head>
 <body>
     <nav class="navbar navbar-inverse navbar-fixed-top">
@@ -43,14 +21,16 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">LambdaChess</a>
+          <a class="navbar-brand" href="index.html">LambdaChess</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Analyze</a></li>
+            <li class="active"><a href="index.html">Analyze</a></li>
             <li><a href="about">About LambdaChess</a></li>
-            <li><a href="contact">Contact</a></li>
           </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="https://github.com/jusahah/LambdaChess" target="_blank">In Github</a></li>   
+          </ul> 
         </div><!--/.nav-collapse -->
       </div>
     </nav>
@@ -62,7 +42,7 @@
       chess analysis. It analyses chess games and displays visualizations of move evaluations.</p>
       <hr>
       <h3>What Lambda stands for?</h3>
-      <p>Amazon allows Stockfish 7 binary be executed on its <a href="https://aws.amazon.com/lambda/" target="_blank">Lambda cloud service</a>. This way LambdaChess can take in PGN game, split it into positions, and send each position separately to Lambda computation process. Sending is done from Node.js server by HTTP.</p>
+      <p>Amazon allows <a href="https://stockfishchess.org/" target="_blank">Stockfish 7</a> binary be executed on its <a href="https://aws.amazon.com/lambda/" target="_blank">Lambda cloud service</a>. This way LambdaChess can take in PGN game, split it into positions, and send each position separately to Lambda computation process. Sending is done from Node.js server by HTTP.</p>
       <p>On the Amazon side Node.js receives the position, and sends it to separate local Stockfish 7 process to be analysed. Stockfish churns for a while, spits out the analysis and job is done.</p>
       <p>After all positions are analysed,
       positions are joined back together forming a PGN text file, which is then routed to end user.</p>
@@ -73,12 +53,13 @@
       <p>Note that ply depth of 16 is modest. Probably comparable to ELO 2600 or something. Think it more of a blunder check than real analysis. Later on I may add possibility of buying deeper analysis. Something like 24 ply, which is already way above Carlsen strength.</p>
       <hr>
       <h3>Source?</h3>
-      <p>On Github: <a href="" target="_blank">LambdaChess</a></p>
+      <p>On Github: <a href="http://github.com/jusahah/LambdaChess" target="_blank">LambdaChess</a></p>
       <hr>
       <h3>Contact / ideas?</h3>
       <p>Contact me at Twitter: <a href="https://twitter.com/jussi_ha">@jussi_ha</a></p>
 
     </div>
-
+<script   src="https://code.jquery.com/jquery-2.2.3.min.js"   integrity="sha256-a23g1Nt4dtEYOj7bR+vTu7+T8VP13humZFBJNIYoEJo="   crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
 </body>
 </html>    
