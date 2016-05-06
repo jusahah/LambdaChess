@@ -41,10 +41,12 @@ function runStockfish(gamePositions, cb, depth) {
 			lastStartTime = Date.now();
 			currentEval = '?';
 			//console.log("Setting position: " + position.fen);
+			var movetime = Math.floor(Math.random()*1500) + 2500;
 			currentlyAnalysing = position;
 			stockfish.stdin.write('ucinewgame\n');
 			stockfish.stdin.write('position fen ' + position.fen + '\n');
-			stockfish.stdin.write('go depth ' + depth + '\n');			
+			stockfish.stdin.write('go movetime ' + movetime + '\n');	
+			//stockfish.stdin.write('go depth ' + depth + '\n');			
 
 		}
 	});
