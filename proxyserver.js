@@ -1,4 +1,6 @@
-//var request = require('request');
+// Require enviroment data, which automatically binds variables to process.env
+require('dotenv').config();
+
 var static = require('node-static'); // For returning test.html, nothing else
 var fs = require('fs');
 var _ = require('lodash');
@@ -14,10 +16,10 @@ require('http').createServer(function (request, response) {
     	fileServer.serve(request, response);
         //fileServer.serveFile('/index.html', 200, {}, request, response);
     }).resume();
-}).listen(8080);
+}).listen(process.env.FILESERVER_PORT);
 
 
-server.listen(3210);
+server.listen(process.env.SOCKET_PORT);
 
 // Own deps
 var analyseController = require('./index');
@@ -25,8 +27,8 @@ var positionalize = require('./positionsFromSinglePGN');  // Function
 var pgnize        = require('./evaluatedPositionsToPGN'); // Function
 
 // AWS data (must be kept private)
-var LAMBDA_URL = 'https://pyitkzd2t5.execute-api.eu-central-1.amazonaws.com/prod/StockfishNative';
-var API_KEY    = 'HwINjCJPSe5sSIcFZUZKX3zAGWFy5dNY3g9Hrxjj';
+var LAMBDA_URL = process.env.LAMBDA_URL;
+var API_KEY    = process.env.API_KEY;
 /*
 // Test file read and processing
 var pgnFile = fs.readFileSync('smallgame2.pgn', 'utf8');
